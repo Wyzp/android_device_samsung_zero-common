@@ -31,7 +31,6 @@ namespace implementation {
 
 using ::vendor::nexus::zero::Utils;
 	
-SecPowerProfile Profiles::kPowerProfileScreenOff;
 SecPowerProfile Profiles::kPowerProfilePowerSave;
 SecPowerProfile Profiles::kPowerProfileBiasPowerSave;
 SecPowerProfile Profiles::kPowerProfileBalanced;
@@ -55,11 +54,6 @@ void Profiles::loadProfilesImpl(const char *path) {
 
 	xmlDoc *doc = xmlParseFile(path);
 	xmlXPathContext *ctx = xmlXPathNewContext(doc);
-
-	loadProfileImpl(
-		&kPowerProfileScreenOff,
-		ctx,
-		"/profiles/screen_off/");
 
 	loadProfileImpl(
 		&kPowerProfilePowerSave,
@@ -228,11 +222,6 @@ void Profiles::loadProfileImpl(SecPowerProfile *profile, xmlXPathContext *ctx, c
 const SecPowerProfile* Profiles::getProfileData(SecPowerProfiles profile) {
 	switch_uint32_t (profile)
 	{
-		case_uint32_t (SecPowerProfiles::SCREEN_OFF):
-		{
-			ALOGV("%s: returning kPowerProfileScreenOff", __func__);
-			return &kPowerProfileScreenOff;
-		}
 		case_uint32_t (SecPowerProfiles::POWER_SAVE):
 		{
 			ALOGV("%s: returning kPowerProfilePowerSave", __func__);

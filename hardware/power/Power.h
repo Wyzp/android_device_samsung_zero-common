@@ -146,7 +146,6 @@ using ::std::thread;
 
 enum class SecPowerProfiles : int32_t {
 	INVALID          = (-0x7FFFFFFF - 1),
-	SCREEN_OFF       = -1,
 	POWER_SAVE       = 0,
 	BALANCED         = 1,
 	HIGH_PERFORMANCE = 2,
@@ -224,9 +223,6 @@ private:
 	//
 	// Private methods
 	//
-
-	// Sends a boostpulse request to the cpugov if supported.
-	void boostpulse(int duration);
 
 	// Set the current profile to [profile]. Also updates mCurrentProfile.
 	// Default to UNKNOWN

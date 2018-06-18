@@ -122,17 +122,6 @@ Return<void> Power::setInteractive(bool interactive) {
 		goto exit;
 	}
 
-	if (!interactive) {
-		setProfile(SecPowerProfiles::SCREEN_OFF);
-	} else {
-		// reset to requested- or fallback-profile
-		resetProfile(500);
-	}
-
-	// speed up the device a bit
-	/* Utils::write("/sys/kernel/hmp/boostpulse_duration", 2500000); // 2.5s
-	Utils::write("/sys/kernel/hmp/boostpulse", true); */
-
 	setInputState(interactive);
 
 exit:
@@ -195,12 +184,6 @@ Return<void> Power::powerHint(PowerHint hint, int32_t data)  {
 		/*
 		 * Interaction/Boosting
 		 */
-		case_uint32_t (PowerHint::INTERACTION):
-		{
-			// ALOGV("%s: PowerHint::INTERACTION(%d)", __func__, data);
-			boostpulse(data);
-			break;
-		}
 		case_uint32_t (PowerHint::LAUNCH):
 		{
 			// ALOGV("%s: PowerHint::LAUNCH(%d)", __func__, data);
@@ -272,42 +255,7 @@ Return<int32_t> Power::getFeature(LineageFeature feature)  {
 #endif
 
 // Private Methods
-void Power::boostpulse(int duration) {
-	std::lock_guard<std::mutex> autolock(mBoostpulseLock);
 
-	if (duration <= 0) {
-		duration = (1000 / 60) * 10;
-	}
-
-	// get current profile data
-	const SecPowerProfile* data = Profiles::getProfileData(mCurrentProfile);
-
-	if (data->cpu.apollo.freq_boost) {
-		if (!Utils::updateCpuGov(0)) {
-			ALOGW("Failed to load current cpugov-configuration for APOLLO");
-#ifdef STRICT_BEHAVIOUR
-			return;
-#endif
-		}
-
-		Utils::writeCpuGov(0, "boost_freq", data->cpu.apollo.freq_boost);
-		Utils::writeCpuGov(0, "boostpulse_duration", duration * 1000);
-		Utils::writeCpuGov(0, "boostpulse", true);
-	}
-
-	if (data->cpu.atlas.freq_boost) {
-		if (!Utils::updateCpuGov(4)) {
-			ALOGW("Failed to load current cpugov-configuration for ATLAS");
-#ifdef STRICT_BEHAVIOUR
-			return;
-#endif
-		}
-
-		Utils::writeCpuGov(4, "boost_freq", data->cpu.atlas.freq_boost);
-		Utils::writeCpuGov(4, "boostpulse_duration", duration * 1000);
-		Utils::writeCpuGov(4, "boostpulse", true);
-	}
-}
 
 void Power::setProfile(SecPowerProfiles profile) {
 	auto begin = Utils::getTime();
@@ -404,76 +352,6 @@ void Power::setProfile(SecPowerProfiles profile) {
 					std::string(data->cpu.atlas.governor_data[i].data));
 			}
 		}
-	}
-
-	/*********************
-	 * cpusets
-	 */
-	if (data->cpusets.enabled) {
-		Utils::write("/dev/cpuset/cpus",                   data->cpusets.defaults);
-		Utils::write("/dev/cpuset/foreground/cpus",        data->cpusets.foreground);
-		Utils::write("/dev/cpuset/foreground/boost/cpus",  data->cpusets.foreground_boost);
-		Utils::write("/dev/cpuset/background/cpus",        data->cpusets.background);
-		Utils::write("/dev/cpuset/system-background/cpus", data->cpusets.system_background);
-		Utils::write("/dev/cpuset/top-app/cpus",           data->cpusets.top_app);
-	}
-
-	/*********************
-	 * IPA
-	 */
-	if (data->ipa.enabled) {
-		Utils::write("/sys/power/ipa/enabled", "Y");
-		Utils::write("/sys/power/ipa/control_temp", data->ipa.control_temp);
-	}
-
-	/*********************
-	 * GPU Defaults
-	 */
-	if (data->gpu.enabled) {
-		if (data->gpu.dvfs.enabled) {
-			Utils::write("/sys/devices/platform/gpusysfs/gpu_min_clock", data->gpu.dvfs.freq_min);
-			Utils::write("/sys/devices/platform/gpusysfs/gpu_max_clock", data->gpu.dvfs.freq_max);
-		}
-		if (data->gpu.highspeed.enabled) {
-			Utils::write("/sys/devices/14ac0000.mali/highspeed_clock",   data->gpu.highspeed.freq);
-			Utils::write("/sys/devices/14ac0000.mali/highspeed_load",    data->gpu.highspeed.load);
-		}
-	}
-
-	/*********************
-	 * Kernel Defaults
-	 */
-	if (data->hmp.enabled) {
-		Utils::write("/sys/kernel/hmp/boost", data->hmp.boost);
-		Utils::write("/sys/kernel/hmp/semiboost", data->hmp.semiboost);
-	}
-
-	if (data->kernel.enabled) {
-		// Keep dynamic hotplugging disabled to 1.) ensure availability of all
-		// clusters when power-HAL gets a setInteractive()-event and 2.)
-		// to drastically lower the the screen-on-delay
-		Utils::write("/sys/power/enable_dm_hotplug", false);
-
-		// The power-efficient workqueue is useful for lower-power-situations, but
-		// contraproductive in high-performance situations. This should reflect in
-		// the static power-profiles
-		Utils::write("/sys/module/workqueue/parameters/power_efficient", data->kernel.pewq);
-	}
-
-	/*********************
-	 * Slow Mode Defaults
-	 */
-	if (data->slow.enabled) {
-		Utils::write("/sys/devices/virtual/sec/sec_slow/enforced_slow_mode", data->slow.mode_toggle);
-		Utils::write("/sys/devices/virtual/sec/sec_slow/timer_rate", data->slow.timer_rate);
-	}
-
-	/*********************
-	 * Input-Booster Defaults
-	 */
-	if (data->input_booster.enabled) {
-		Utils::write("/sys/class/input_booster/tail", data->input_booster.tail);
-		Utils::write("/sys/class/input_booster/head", data->input_booster.head);
 	}
 
 	auto end = Utils::getTime();

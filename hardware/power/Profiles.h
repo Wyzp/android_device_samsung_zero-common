@@ -182,7 +182,6 @@ private:
 	static void loadProfilesImpl(const char *path);
 	static void loadProfileImpl(SecPowerProfile *profile, xmlXPathContext *ctx, const char *path);
 
-	static SecPowerProfile kPowerProfileScreenOff;
 	static SecPowerProfile kPowerProfilePowerSave;
 	static SecPowerProfile kPowerProfileBiasPowerSave;
 	static SecPowerProfile kPowerProfileBalanced;
